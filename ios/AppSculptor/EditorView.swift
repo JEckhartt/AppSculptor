@@ -46,12 +46,20 @@ struct EditorView: View {
     private var panel: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
-                Picker("Panel", selection: $store.panel) {
-                    ForEach(Panel.allCases) { Text($0.rawValue).tag($0) }
+                if panelOpen || hsc == .regular {
+                    Picker("Panel", selection: $store.panel) {
+                        ForEach(Panel.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                } else {
+                    Button { withAnimation(.snappy) { panelOpen = true } } label: {
+                        Label("Show \(store.panel.rawValue) panel", systemImage: "chevron.up")
+                            .font(.subheadline.weight(.semibold))
+                            .frame(maxWidth: .infinity, minHeight: 28)
+                    }
+                    .buttonStyle(.bordered)
                 }
-                .pickerStyle(.segmented)
-                .onChange(of: store.panel) { _, _ in panelOpen = true }
-                if hsc != .regular {
+                if hsc != .regular && panelOpen {
                     Button { withAnimation(.snappy) { panelOpen.toggle() } } label: {
                         Image(systemName: panelOpen ? "chevron.down" : "chevron.up").frame(width: 28, height: 28)
                     }
@@ -75,6 +83,7 @@ struct EditorView: View {
             }
         }
         .background(Color(.systemBackground))
+        .onChange(of: store.panel) { _, _ in panelOpen = true }
     }
 }
 
