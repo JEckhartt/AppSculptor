@@ -1,0 +1,1238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>AppSculptor</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+/* Layout: workbench — palette | stage with device | inspector; on phones the stage sits on top and the panels become tabs. */
+:root{
+  --bg:#F3F4F7; --panel:#FFFFFF; --line:#E1E4EA; --ink:#15181E; --muted:#5F6775;
+  --accent:#3457D5; --accent-ink:#FFFFFF; --accent-soft:#E6EBFB; --stage:#E8EAEF; --dot:#D3D7DF;
+  --danger:#C9343A; --note:#D6336C;
+  --f-ui:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-display:"Space Grotesk","Inter",system-ui,sans-serif;
+  --r:10px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#111318; --panel:#191C22; --line:#2A2E36; --ink:#ECEEF2; --muted:#959CA8;
+  --accent:#7D95F2; --accent-ink:#0E1220; --accent-soft:#232B45; --stage:#0C0E12; --dot:#1E222A;
+  --danger:#F06A6F; --note:#F06595; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111318; --panel:#191C22; --line:#2A2E36; --ink:#ECEEF2; --muted:#959CA8;
+  --accent:#7D95F2; --accent-ink:#0E1220; --accent-soft:#232B45; --stage:#0C0E12; --dot:#1E222A;
+  --danger:#F06A6F; --note:#F06595; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 var(--f-ui);-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--panel)}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;display:flex;align-items:center;gap:10px;
+  padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  background:var(--panel);border-bottom:1px solid var(--line)}
+.brand{font:700 17px/1 var(--f-display);letter-spacing:-.01em;white-space:nowrap;display:flex;align-items:center;gap:8px}
+.brand i{width:22px;height:22px;border-radius:6px;background:var(--accent);display:inline-block;position:relative}
+.brand i::after{content:"";position:absolute;inset:6px 5px 5px 6px;border:2px solid var(--accent-ink);border-radius:3px}
+#projName{min-width:0;flex:1 1 160px;max-width:260px;border:1px solid transparent;background:transparent;border-radius:8px;padding:6px 8px;font-weight:600}
+#projName:hover,#projName:focus{border-color:var(--line);background:var(--bg)}
+.spacer{flex:1}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:7px 12px;font-weight:500;white-space:nowrap}
+.btn:hover{background:var(--bg)}
+.btn:disabled{opacity:.4;cursor:default}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.danger{color:var(--danger)}
+.btn.sm{padding:4px 8px;font-size:12.5px}
+.btn.icon{padding:7px 9px}
+
+.app{display:grid;grid-template-columns:232px minmax(0,1fr) 320px;height:calc(100% - 57px)}
+aside{background:var(--panel);overflow:auto;min-width:0}
+#left{border-right:1px solid var(--line);padding:14px 12px 24px}
+#right{border-left:1px solid var(--line);display:flex;flex-direction:column}
+.group-label{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:14px 4px 6px}
+.group-label:first-child{margin-top:0}
+.palette{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.pal{display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:8px 9px;min-width:0}
+.pal:hover{border-color:var(--accent);background:var(--accent-soft)}
+.pal canvas{width:28px;height:28px}
+.pal span{font-size:12.5px;font-weight:500;line-height:1.2}
+.hint{color:var(--muted);font-size:12.5px;margin:12px 4px 0}
+
+main.stage{position:relative;overflow:auto;background-color:var(--stage);
+  background-image:radial-gradient(var(--dot) 1px,transparent 1px);background-size:18px 18px;display:flex;flex-direction:column;min-width:0}
+.screens{display:flex;gap:6px;align-items:center;padding:12px 16px;overflow-x:auto;flex:none}
+.stab{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:5px 12px;font-size:13px;white-space:nowrap;font-weight:500}
+.stab[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.stab.add{color:var(--accent);border-style:dashed}
+.canvas-wrap{flex:1;display:flex;justify-content:center;align-items:flex-start;padding:8px 16px 40px}
+#view{display:block;max-width:100%;height:auto;touch-action:manipulation;cursor:pointer;filter:drop-shadow(0 10px 30px rgba(10,14,25,.18))}
+.zoom{position:sticky;bottom:12px;align-self:flex-end;margin:0 16px 12px;display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:3px}
+.zoom button{border:0;background:transparent;border-radius:6px;padding:3px 9px;font-size:12.5px;font-weight:500}
+.zoom button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent)}
+
+.tabs{display:flex;border-bottom:1px solid var(--line);padding:0 8px;flex:none;position:sticky;top:0;background:var(--panel);z-index:2}
+.tab{border:0;background:transparent;padding:12px 10px 10px;font-weight:600;font-size:13px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tab.m-only{display:none}
+.pane{padding:14px 16px 32px;display:flex;flex-direction:column;gap:12px}
+.pane[hidden]{display:none!important}
+.field{display:flex;flex-direction:column;gap:5px}
+.field>label,.flabel{font-size:12px;font-weight:600;color:var(--muted)}
+.field input[type=text],.field input[type=number],.field select,.field textarea{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:7px 9px;min-width:0}
+.field textarea{resize:vertical;min-height:64px;line-height:1.4}
+.field .sub{font-size:11.5px;color:var(--muted)}
+.check{display:flex;align-items:center;gap:8px;font-weight:500;font-size:13.5px}
+.check input{width:16px;height:16px;accent-color:var(--accent)}
+.row{display:flex;gap:6px;flex-wrap:wrap}
+.note-field textarea{border-color:color-mix(in srgb,var(--note) 45%,var(--line))!important}
+.note-field>label{color:var(--note)}
+.comp-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.comp-head h2{margin:0;font:600 17px/1.2 var(--f-display)}
+.comp-head small{color:var(--muted)}
+.empty{color:var(--muted);border:1px dashed var(--line);border-radius:var(--r);padding:18px;text-align:center}
+.layers{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.layer{display:flex;align-items:center;gap:8px;padding:7px 8px 7px 10px;border-bottom:1px solid var(--line);background:var(--panel);text-align:left;border-left:0;border-right:0;border-top:0;width:100%}
+.layer:last-child{border-bottom:0}
+.layer:hover{background:var(--bg)}
+.layer[aria-current="true"]{background:var(--accent-soft)}
+.layer .lt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.layer .lt b{font-weight:600}
+.layer .pin{font-size:10.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.layer .nb{font-size:10.5px;font-weight:700;color:#fff;background:var(--note);border-radius:99px;padding:0 6px}
+.mv{display:flex;gap:2px}
+.mv span{border:1px solid var(--line);border-radius:6px;width:24px;height:24px;display:grid;place-items:center;font-size:12px;background:var(--panel)}
+.swatches{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.sw{width:28px;height:28px;border-radius:8px;border:2px solid transparent;padding:0}
+.sw[aria-pressed="true"]{border-color:var(--ink)}
+input[type=color]{width:40px;height:30px;border:1px solid var(--line);border-radius:8px;background:var(--bg);padding:2px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{flex:1;border:0;background:var(--panel);padding:7px 6px;font-weight:500;font-size:13px}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);font-weight:600}
+
+/* export sheet */
+.modal{position:fixed;inset:0;z-index:20;background:rgba(8,10,16,.5);display:flex;align-items:flex-start;justify-content:center;overflow:auto;
+  padding-block:max(24px,env(safe-area-inset-top,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.sheet{background:var(--panel);border-radius:14px;width:min(980px,100%);border:1px solid var(--line);display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);overflow:hidden}
+.sheet .pv{background:var(--stage);padding:16px;display:flex;align-items:center;justify-content:center;min-height:220px;max-height:72vh;overflow:auto}
+.sheet .pv img{max-width:100%;max-height:68vh;border-radius:6px;box-shadow:0 4px 20px rgba(0,0,0,.15)}
+.sheet .side{padding:20px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.sheet h2{margin:0;font:600 20px/1.2 var(--f-display);text-wrap:balance}
+.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px;color:var(--muted)}
+.steps b{color:var(--ink);font-weight:600}
+.xgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.xgrid .btn{justify-content:flex-start;padding:9px 11px}
+.xgrid .btn small{display:block;font-weight:400;color:inherit;opacity:.75;font-size:11.5px}
+.xgrid .btn div{text-align:left}
+#briefOut{width:100%;height:150px;border:1px solid var(--line);border-radius:8px;background:var(--bg);padding:8px;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;resize:vertical}
+.sheet-foot{display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:12px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:30;background:var(--ink);color:var(--bg);padding:9px 14px;border-radius:9px;font-weight:500;display:flex;gap:12px;align-items:center;box-shadow:0 6px 20px rgba(0,0,0,.25);max-width:calc(100% - 32px)}
+.toast button{border:0;background:transparent;color:var(--accent);font-weight:700;padding:0;filter:brightness(1.4)}
+
+@media (max-width:999px){
+  html,body{height:auto}
+  .app{display:flex;flex-direction:column;height:auto}
+  #left,#right{border:0;overflow:visible}
+  main.stage{order:1;min-height:auto;overflow:visible}
+  #right{order:2;border-top:1px solid var(--line)}
+  #left{order:3}
+  .tab.m-only{display:inline-block}
+  body[data-mtab="add"] #right .pane{display:none!important}
+  body:not([data-mtab="add"]) #left{display:none}
+  body[data-mtab="add"] #left{display:block;padding-top:6px}
+  .palette{grid-template-columns:repeat(auto-fill,minmax(104px,1fr))}
+  .zoom{display:none}
+  .canvas-wrap{padding-bottom:16px}
+  .sheet{grid-template-columns:1fr}
+  .sheet .pv{max-height:44vh}
+  .sheet .pv img{max-height:40vh}
+  .hide-sm{display:none}
+}
+@media (max-width:520px){ .xgrid{grid-template-columns:1fr} #projName{max-width:140px} }
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body data-mtab="component">
+
+<header class="top">
+  <div class="brand"><i aria-hidden="true"></i><span class="hide-sm">AppSculptor</span></div>
+  <input id="projName" type="text" aria-label="App name" spellcheck="false">
+  <div class="spacer"></div>
+  <button class="btn icon" id="undoBtn" title="Undo (Ctrl+Z)" aria-label="Undo">↶</button>
+  <button class="btn icon" id="redoBtn" title="Redo (Ctrl+Shift+Z)" aria-label="Redo">↷</button>
+  <button class="btn primary" id="exportBtn">Export for Claude</button>
+</header>
+
+<div class="app">
+  <aside id="left" aria-label="Add components">
+    <div id="palette"></div>
+    <p class="hint">Tap a component to add it below the selected one. Pinned pieces (nav bar, tab bar, footer) snap to the top or bottom on their own.</p>
+  </aside>
+
+  <main class="stage" id="stage">
+    <div class="screens" id="screenTabs" role="tablist" aria-label="Screens"></div>
+    <div class="canvas-wrap"><canvas id="view" aria-label="Screen mockup — click a component to edit it"></canvas></div>
+    <div class="zoom" id="zoom" role="group" aria-label="Zoom">
+      <button data-z="fit" aria-pressed="true">Fit</button><button data-z="1">100%</button>
+    </div>
+  </main>
+
+  <aside id="right" aria-label="Inspector">
+    <div class="tabs" role="tablist">
+      <button class="tab m-only" data-tab="add">Add</button>
+      <button class="tab" data-tab="component">Component</button>
+      <button class="tab" data-tab="screen">Screen</button>
+      <button class="tab" data-tab="style">App style</button>
+    </div>
+    <section class="pane" id="pane-component"></section>
+    <section class="pane" id="pane-screen" hidden></section>
+    <section class="pane" id="pane-style" hidden></section>
+  </aside>
+</div>
+
+<div class="modal" id="exportModal" hidden role="dialog" aria-modal="true" aria-labelledby="exTitle">
+  <div class="sheet">
+    <div class="pv"><img id="exPreview" alt="Preview of the exported mockup image"></div>
+    <div class="side">
+      <div class="comp-head"><h2 id="exTitle">Send this mockup to Claude</h2><button class="btn icon" id="exClose" aria-label="Close">✕</button></div>
+      <ol class="steps">
+        <li><b>Save the image</b> — every screen side by side, with numbered note markers.</li>
+        <li><b>Copy the brief</b> — the same screens written out component by component.</li>
+        <li>In your app thread, <b>attach the image and paste the brief</b>.</li>
+      </ol>
+      <div class="xgrid">
+        <button class="btn primary" id="xPng"><div>Save image<small>All screens · PNG</small></div></button>
+        <button class="btn primary" id="xCopy"><div>Copy brief<small>Paste into the chat</small></div></button>
+        <button class="btn" id="xPngOne"><div>Current screen only<small>PNG</small></div></button>
+        <button class="btn" id="xMd"><div>Save brief<small>Markdown file</small></div></button>
+      </div>
+      <textarea id="briefOut" readonly aria-label="Brief text"></textarea>
+      <div class="sheet-foot">
+        <button class="btn sm" id="xJson">Save project file</button>
+        <label class="btn sm" for="openFile">Open project file</label>
+        <input type="file" id="openFile" accept=".json,application/json" hidden>
+        <span class="spacer"></span>
+        <button class="btn sm" id="xExample">Load example</button>
+        <button class="btn sm danger" id="xNew">Start blank</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+"use strict";
+
+/* ---------------- constants ---------------- */
+const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+const fnt = (s, w = 400) => `${w} ${s}px ${FONT}`;
+const NOTE_COLOR = "#D6336C";
+const DEVICES = {
+  phone:  { label: "Phone",  w: 390,  h: 844,  status: 50, max: 9999, pad: 16, home: 22 },
+  tablet: { label: "Tablet", w: 820,  h: 1180, status: 28, max: 640,  pad: 24, home: 12 },
+  web:    { label: "Web",    w: 1280, h: 800,  status: 0,  max: 760,  pad: 32, home: 0 },
+};
+const THEMES = {
+  light: { bg: "#FFFFFF", surface: "#F2F3F5", surface2: "#E5E7EB", text: "#111418", muted: "#6B7280", border: "#DEE1E6" },
+  dark:  { bg: "#0E1014", surface: "#1A1D23", surface2: "#272B33", text: "#F2F4F7", muted: "#9BA2AE", border: "#2C3038" },
+};
+const ACCENTS = ["#3457D5", "#0E9F6E", "#E8590C", "#C2255C", "#7048E8", "#111418"];
+const ICON_NAMES = ["none","back","menu","close","search","more","plus","user","settings","bell","home","heart","chat","cart","calendar","star","chart","share","filter","edit","play","image","check"];
+const uid = () => Math.random().toString(36).slice(2, 9);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lines = s => String(s || "").split("\n").map(x => x.trim()).filter(Boolean);
+const csv = s => String(s || "").split(",").map(x => x.trim()).filter(Boolean);
+
+/* ---------------- drawing helpers ---------------- */
+const MG = document.createElement("canvas").getContext("2d");
+function rr(g, x, y, w, h, r) {
+  r = Math.max(0, Math.min(r, w / 2, h / 2));
+  g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+}
+function wrap(text, maxW, font) {
+  MG.font = font; const out = [];
+  for (const para of String(text ?? "").split("\n")) {
+    const words = para.split(/\s+/).filter(Boolean); if (!words.length) { out.push(""); continue; }
+    let cur = "";
+    for (const w of words) {
+      const t = cur ? cur + " " + w : w;
+      if (MG.measureText(t).width <= maxW || !cur) cur = t; else { out.push(cur); cur = w; }
+    }
+    out.push(cur);
+  }
+  return out.length ? out : [""];
+}
+function txt(g, s, x, y, font, color, align = "left", base = "middle") {
+  g.font = font; g.fillStyle = color; g.textAlign = align; g.textBaseline = base; g.fillText(s, x, y);
+}
+function drawLines(g, ls, x, y, w, lh, font, color, align = "left") {
+  const ax = align === "center" ? x + w / 2 : align === "right" ? x + w : x;
+  ls.forEach((l, i) => txt(g, l, ax, y + i * lh + lh / 2, font, color, align));
+}
+function ellipsize(s, maxW, font) {
+  MG.font = font; if (MG.measureText(s).width <= maxW) return s;
+  while (s.length > 1 && MG.measureText(s + "…").width > maxW) s = s.slice(0, -1);
+  return s + "…";
+}
+function alpha(hex, a) {
+  const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`;
+}
+function onColor(hex) {
+  const n = parseInt(hex.slice(1), 16), r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+  const lin = c => c <= .03928 ? c / 12.92 : ((c + .055) / 1.055) ** 2.4;
+  return (0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)) > 0.45 ? "#111418" : "#FFFFFF";
+}
+function initials(s) { return (String(s || "?").match(/\b\p{L}/gu) || ["?"]).slice(0, 2).join("").toUpperCase(); }
+
+/* icons on a 24-unit grid */
+function icon(g, name, cx, cy, size, color, lw = 2) {
+  if (!name || name === "none") return;
+  g.save(); g.translate(cx - size / 2, cy - size / 2); g.scale(size / 24, size / 24);
+  g.strokeStyle = color; g.fillStyle = color; g.lineWidth = lw; g.lineCap = "round"; g.lineJoin = "round";
+  const P = pts => { g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); };
+  const S = () => g.stroke(); const C = (x, y, r) => { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); };
+  switch (name) {
+    case "back": P([[15,5],[8,12],[15,19]]); S(); break;
+    case "chevron": P([[9,5],[16,12],[9,19]]); S(); break;
+    case "down": P([[6,9],[12,15],[18,9]]); S(); break;
+    case "menu": [7,12,17].forEach(y => { P([[4,y],[20,y]]); S(); }); break;
+    case "close": P([[6,6],[18,18]]); S(); P([[18,6],[6,18]]); S(); break;
+    case "search": C(11,11,6.5); S(); P([[16,16],[20.5,20.5]]); S(); break;
+    case "more": [5,12,19].forEach(x => { C(x,12,1.8); g.fill(); }); break;
+    case "plus": P([[12,5],[12,19]]); S(); P([[5,12],[19,12]]); S(); break;
+    case "user": C(12,8,4); S(); g.beginPath(); g.arc(12,21.5,8,Math.PI*1.05,Math.PI*1.95); S(); break;
+    case "settings": C(12,12,3); S(); C(12,12,7.5); S();
+      for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; P([[12+Math.cos(a)*7.5,12+Math.sin(a)*7.5],[12+Math.cos(a)*10,12+Math.sin(a)*10]]); S(); } break;
+    case "bell": g.beginPath(); g.moveTo(6,17); g.lineTo(6,11); g.arc(12,11,6,Math.PI,0); g.lineTo(18,17); g.lineTo(19.5,18.5); g.lineTo(4.5,18.5); g.closePath(); S(); P([[10,21.5],[14,21.5]]); S(); break;
+    case "home": P([[4,11],[12,4],[20,11]]); S(); P([[6,9.5],[6,20],[18,20],[18,9.5]]); S(); P([[10,20],[10,14],[14,14],[14,20]]); S(); break;
+    case "heart": g.beginPath(); g.moveTo(12,20); g.bezierCurveTo(4,14.5,2.5,9,6,6.3); g.bezierCurveTo(8.6,4.4,11,5.6,12,7.6); g.bezierCurveTo(13,5.6,15.4,4.4,18,6.3); g.bezierCurveTo(21.5,9,20,14.5,12,20); g.closePath(); S(); break;
+    case "chat": rr(g,3.5,4.5,17,12,3.5); S(); P([[8,16.5],[7,20.5],[12.5,16.5]]); S(); break;
+    case "cart": P([[3,4],[6,4],[8,15],[18,15],[20,7],[7,7]]); S(); C(9,19,1.4); g.fill(); C(17,19,1.4); g.fill(); break;
+    case "calendar": rr(g,4,5.5,16,14.5,2.5); S(); P([[4,10],[20,10]]); S(); P([[8.5,3.5],[8.5,7]]); S(); P([[15.5,3.5],[15.5,7]]); S(); break;
+    case "star": g.beginPath(); for (let i = 0; i < 10; i++) { const r = i % 2 ? 4 : 9, a = -Math.PI/2 + i*Math.PI/5; g.lineTo(12+Math.cos(a)*r, 12.5+Math.sin(a)*r); } g.closePath(); S(); break;
+    case "chart": P([[5,20],[5,13]]); S(); P([[10,20],[10,6]]); S(); P([[15,20],[15,10]]); S(); P([[20,20],[20,15]]); S(); break;
+    case "share": P([[12,15],[12,4]]); S(); P([[8,8],[12,4],[16,8]]); S(); P([[6,12],[5,12],[5,20],[19,20],[19,12],[18,12]]); S(); break;
+    case "filter": P([[4,7],[20,7]]); S(); P([[7,12],[17,12]]); S(); P([[10,17],[14,17]]); S(); break;
+    case "edit": P([[4,20],[8.5,19],[19,8.5],[15.5,5],[5,15.5],[4,20]]); S(); break;
+    case "play": P([[8,5],[19,12],[8,19]]); g.closePath(); g.fill(); break;
+    case "image": rr(g,3.5,5,17,14,2.5); S(); P([[6,17],[10,12],[13,15],[15,13],[18,17]]); S(); C(15.5,9.5,1.4); g.fill(); break;
+    case "check": P([[5,12.5],[10,17],[19,7]]); S(); break;
+    case "dot": C(12,12,3.5); g.fill(); break;
+    default: C(12,12,7); S();
+  }
+  g.restore();
+}
+const ICON_WORDS = [
+  [/home|\bfeed\b|discover/i,"home"],[/search|find|explore/i,"search"],[/profile|account|me\b|you\b|user/i,"user"],
+  [/setting|preference|appearance/i,"settings"],[/notif|alert|bell|remind/i,"bell"],[/fav|like|love|saved|wishlist/i,"heart"],
+  [/chat|message|inbox|help|feedback|support/i,"chat"],[/cart|shop|store|order|bag/i,"cart"],[/today|calendar|schedule|event|plan/i,"calendar"],
+  [/star|review|rating/i,"star"],[/stat|insight|report|analytic|progress|activity/i,"chart"],[/share|export|invite/i,"share"],
+  [/add|new|create|post/i,"plus"],[/filter|sort/i,"filter"],[/edit|write|compose/i,"edit"],[/play|video|watch|music/i,"play"],
+  [/photo|gallery|image|media/i,"image"],[/task|done|habit|todo/i,"check"],
+];
+const iconFor = s => (ICON_WORDS.find(([re]) => re.test(s)) || [0, "dot"])[1];
+
+function drawSwitch(g, x, y, on, L) {
+  rr(g, x, y, 50, 30, 15); g.fillStyle = on ? L.acc : L.c.surface2; g.fill();
+  g.beginPath(); g.arc(on ? x + 35 : x + 15, y + 15, 12.5, 0, Math.PI * 2); g.fillStyle = "#FFFFFF";
+  g.shadowColor = "rgba(0,0,0,.18)"; g.shadowBlur = 3; g.shadowOffsetY = 1; g.fill(); g.shadowColor = "transparent";
+}
+function drawCheckbox(g, x, y, on, L, round = false) {
+  rr(g, x, y, 22, 22, round ? 11 : Math.min(6, L.rad));
+  if (on) { g.fillStyle = L.acc; g.fill(); icon(g, "check", x + 11, y + 11, 16, L.onAcc, 2.6); }
+  else { g.strokeStyle = L.c.muted; g.lineWidth = 1.6; g.stroke(); }
+}
+function drawButton(g, x, y, w, h, label, style, L) {
+  const r = Math.min(L.rad, h / 2);
+  if (style === "primary") { rr(g, x, y, w, h, r); g.fillStyle = L.acc; g.fill(); }
+  else if (style === "secondary") { rr(g, x, y, w, h, r); g.fillStyle = L.c.surface2; g.fill(); }
+  else if (style === "outline") { rr(g, x + .75, y + .75, w - 1.5, h - 1.5, r); g.strokeStyle = L.acc; g.lineWidth = 1.5; g.stroke(); }
+  const col = style === "primary" ? L.onAcc : style === "secondary" ? L.c.text : L.acc;
+  const f = fnt(h >= 44 ? 16 : 14, 600);
+  txt(g, ellipsize(label || "Button", w - 20, f), x + w / 2, y + h / 2 + 1, f, col, "center");
+}
+
+/* ---------------- component library ---------------- */
+const F = {
+  text: (key, label, sub) => ({ key, label, kind: "text", sub }),
+  area: (key, label, sub) => ({ key, label, kind: "area", sub }),
+  sel: (key, label, options) => ({ key, label, kind: "select", options }),
+  tog: (key, label) => ({ key, label, kind: "toggle" }),
+  num: (key, label, min, max, sub) => ({ key, label, kind: "number", min, max, sub }),
+};
+const ALIGN = F.sel("align", "Alignment", [["left","Left"],["center","Center"]]);
+const ICON_SEL = (key, label) => F.sel(key, label, ICON_NAMES.map(n => [n, n === "none" ? "None" : n[0].toUpperCase() + n.slice(1)]));
+
+const C = {
+  navbar: {
+    label: "Nav bar", group: "Structure", pin: "top", full: true, glyph: "menu",
+    defaults: { title: "Title", left: "back", right: "none", large: false, filled: false },
+    fields: [F.text("title","Title"), ICON_SEL("left","Left icon"), ICON_SEL("right","Right icon"), F.tog("large","Large title"), F.tog("filled","Accent background")],
+    height: p => p.large ? 104 : 56,
+    draw(g, p, r, L) {
+      const bg = p.filled ? L.acc : L.c.bg, fg = p.filled ? L.onAcc : L.c.text, ic = p.filled ? L.onAcc : L.acc;
+      g.fillStyle = bg; g.fillRect(r.x, r.y, r.w, r.h);
+      if (!p.filled) { g.fillStyle = L.c.border; g.fillRect(r.x, r.y + r.h - 1, r.w, 1); }
+      const cy = r.y + 28, px = Math.max(16, (r.w - L.colW) / 2);
+      icon(g, p.left, r.x + px + 10, cy, 24, ic);
+      icon(g, p.right, r.x + r.w - px - 10, cy, 24, ic);
+      if (p.large) txt(g, ellipsize(p.title || "", r.w - px * 2, fnt(32, 700)), r.x + px, r.y + 76, fnt(32, 700), fg);
+      else txt(g, ellipsize(p.title || "", r.w - 140, fnt(17, 600)), r.x + r.w / 2, cy, fnt(17, 600), fg, "center");
+    },
+    describe: p => `Nav bar${p.large ? " (large title)" : ""}${p.filled ? ", accent background" : ""} — title "${p.title}"; left: ${p.left}; right: ${p.right}`,
+  },
+  tabbar: {
+    label: "Tab bar", group: "Structure", pin: "bottom", full: true, glyph: "home",
+    defaults: { items: "Home\nSearch\nProfile", selected: 1 },
+    fields: [F.area("items","Tabs","One per line. Icons are picked from the words (Home, Search, Profile, Settings…)."), F.num("selected","Selected tab",1,6)],
+    height: (p, L) => 56 + L.dev.home,
+    draw(g, p, r, L) {
+      g.fillStyle = L.c.bg; g.fillRect(r.x, r.y, r.w, r.h); g.fillStyle = L.c.border; g.fillRect(r.x, r.y, r.w, 1);
+      const items = lines(p.items).slice(0, 6); if (!items.length) return;
+      const span = Math.min(r.w, L.colW + 120), x0 = r.x + (r.w - span) / 2, sw = span / items.length;
+      items.forEach((it, i) => {
+        const on = i + 1 === Number(p.selected), col = on ? L.acc : L.c.muted, cx = x0 + sw * i + sw / 2;
+        icon(g, iconFor(it), cx, r.y + 20, 24, col);
+        txt(g, ellipsize(it, sw - 6, fnt(10.5, 600)), cx, r.y + 42, fnt(10.5, 600), col, "center");
+      });
+    },
+    describe: p => `Tab bar — ${lines(p.items).map((t, i) => i + 1 === Number(p.selected) ? `${t} (selected)` : t).join(" · ")}`,
+  },
+  footer: {
+    label: "Footer button", group: "Structure", pin: "bottom", full: true, glyph: "check",
+    defaults: { label: "Continue", side: "" },
+    fields: [F.text("label","Button label"), F.text("side","Text beside the button","Optional, e.g. a price: $24.00")],
+    height: (p, L) => 82 + L.dev.home,
+    draw(g, p, r, L) {
+      g.fillStyle = L.c.bg; g.fillRect(r.x, r.y, r.w, r.h); g.fillStyle = L.c.border; g.fillRect(r.x, r.y, r.w, 1);
+      const x = r.x + (r.w - L.colW) / 2, w = L.colW;
+      if (p.side) { txt(g, ellipsize(p.side, w / 2 - 12, fnt(19, 700)), x, r.y + 41, fnt(19, 700), L.c.text); drawButton(g, x + w / 2, r.y + 16, w / 2, 50, p.label, "primary", L); }
+      else drawButton(g, x, r.y + 16, w, 50, p.label, "primary", L);
+    },
+    describe: p => `Sticky footer with primary button "${p.label}"${p.side ? ` and "${p.side}" beside it` : ""}`,
+  },
+  fab: {
+    label: "Floating button", group: "Structure", pin: "float", glyph: "plus",
+    defaults: { icon: "plus", label: "" },
+    fields: [ICON_SEL("icon","Icon"), F.text("label","Label","Optional — makes it an extended pill")],
+    size(p) { if (!p.label) return [56, 56]; MG.font = fnt(15, 600); return [56 + MG.measureText(p.label).width + 4, 56]; },
+    height: () => 56,
+    draw(g, p, r, L) {
+      g.save(); g.shadowColor = "rgba(0,0,0,.28)"; g.shadowBlur = 14; g.shadowOffsetY = 4;
+      rr(g, r.x, r.y, r.w, r.h, 28); g.fillStyle = L.acc; g.fill(); g.restore();
+      if (p.label) { icon(g, p.icon, r.x + 28, r.y + 28, 24, L.onAcc); txt(g, p.label, r.x + 48, r.y + 29, fnt(15, 600), L.onAcc); }
+      else icon(g, p.icon, r.x + 28, r.y + 28, 26, L.onAcc);
+    },
+    describe: p => `Floating action button (bottom right) — icon ${p.icon}${p.label ? `, label "${p.label}"` : ""}`,
+  },
+
+  heading: {
+    label: "Heading", group: "Text", glyph: "edit",
+    defaults: { text: "Heading", size: "L", align: "left" },
+    fields: [F.area("text","Text"), F.sel("size","Size",[["L","Large"],["M","Medium"],["S","Small"]]), ALIGN],
+    _f: p => ({ L: [30, 36, 700], M: [22, 28, 700], S: [17, 22, 600] })[p.size] || [30, 36, 700],
+    height(p, L, w) { const [s, lh, wt] = this._f(p); return wrap(p.text, w, fnt(s, wt)).length * lh; },
+    draw(g, p, r, L) { const [s, lh, wt] = this._f(p); drawLines(g, wrap(p.text, r.w, fnt(s, wt)), r.x, r.y, r.w, lh, fnt(s, wt), L.c.text, p.align); },
+    describe: p => `Heading (${({L:"large",M:"medium",S:"small"})[p.size]}${p.align === "center" ? ", centered" : ""}) — "${p.text}"`,
+  },
+  text: {
+    label: "Paragraph", group: "Text", glyph: "filter",
+    defaults: { text: "Supporting text that explains what this screen is for.", align: "left", muted: true },
+    fields: [F.area("text","Text"), ALIGN, F.tog("muted","Muted color")],
+    height: (p, L, w) => wrap(p.text, w, fnt(15)).length * 22,
+    draw(g, p, r, L) { drawLines(g, wrap(p.text, r.w, fnt(15)), r.x, r.y, r.w, 22, fnt(15), p.muted ? L.c.muted : L.c.text, p.align); },
+    describe: p => `Paragraph${p.muted ? " (muted)" : ""}${p.align === "center" ? ", centered" : ""} — "${p.text}"`,
+  },
+  banner: {
+    label: "Banner", group: "Text", glyph: "bell",
+    defaults: { text: "Your trial ends in 3 days.", tone: "info" },
+    fields: [F.area("text","Message"), F.sel("tone","Tone",[["info","Info"],["success","Success"],["warning","Warning"],["error","Error"]])],
+    _c: (p, L) => ({ info: L.acc, success: "#1F9D55", warning: "#C77700", error: "#D93636" })[p.tone] || L.acc,
+    height: (p, L, w) => Math.max(48, wrap(p.text, w - 60, fnt(14, 500)).length * 20 + 28),
+    draw(g, p, r, L) {
+      const col = this._c(p, L); rr(g, r.x, r.y, r.w, r.h, Math.min(L.rad, 14)); g.fillStyle = alpha(col, .13); g.fill();
+      g.beginPath(); g.arc(r.x + 24, r.y + 24, 9, 0, Math.PI * 2); g.fillStyle = col; g.fill();
+      txt(g, p.tone === "success" ? "✓" : "!", r.x + 24, r.y + 25, fnt(12, 800), "#fff", "center");
+      drawLines(g, wrap(p.text, r.w - 60, fnt(14, 500)), r.x + 44, r.y + 14, r.w - 60, 20, fnt(14, 500), L.c.text);
+    },
+    describe: p => `${p.tone[0].toUpperCase() + p.tone.slice(1)} banner — "${p.text}"`,
+  },
+
+  button: {
+    label: "Button", group: "Controls", glyph: "check",
+    defaults: { label: "Get started", style: "primary", width: "full" },
+    fields: [F.text("label","Label"), F.sel("style","Style",[["primary","Primary (filled)"],["secondary","Secondary (tinted)"],["outline","Outline"],["text","Text link"]]), F.sel("width","Width",[["full","Full width"],["auto","Fit to label"]])],
+    height: () => 50,
+    draw(g, p, r, L) {
+      let w = r.w; if (p.width === "auto") { MG.font = fnt(16, 600); w = Math.min(r.w, MG.measureText(p.label).width + 48); }
+      drawButton(g, r.x + (r.w - w) / 2, r.y, w, 50, p.label, p.style, L);
+    },
+    describe: p => `${({primary:"Primary",secondary:"Secondary",outline:"Outline",text:"Text"})[p.style]} button${p.width === "full" ? " (full width)" : ""} — "${p.label}"`,
+  },
+  input: {
+    label: "Text field", group: "Controls", glyph: "edit",
+    defaults: { label: "Email", placeholder: "you@example.com", value: "", kind: "text" },
+    fields: [F.text("label","Label","Leave empty for no label"), F.text("placeholder","Placeholder"), F.text("value","Filled-in value","Optional"),
+      F.sel("kind","Type",[["text","Text"],["password","Password"],["search","Search"],["dropdown","Dropdown"],["multiline","Multi-line"]])],
+    height: p => (p.label ? 24 : 0) + (p.kind === "multiline" ? 110 : 48),
+    draw(g, p, r, L) {
+      let y = r.y;
+      if (p.label) { txt(g, p.label, r.x + 2, y + 9, fnt(13, 600), L.c.muted); y += 24; }
+      const h = p.kind === "multiline" ? 110 : 48, pill = p.kind === "search";
+      rr(g, r.x + .5, y + .5, r.w - 1, h - 1, pill ? 24 : Math.min(L.rad, 14)); g.fillStyle = L.c.surface; g.fill(); g.strokeStyle = L.c.border; g.lineWidth = 1; g.stroke();
+      let tx = r.x + 14;
+      if (pill) { icon(g, "search", r.x + 24, y + 24, 20, L.c.muted); tx = r.x + 44; }
+      const shown = p.value ? (p.kind === "password" ? "•".repeat(Math.min(12, p.value.length)) : p.value) : p.placeholder;
+      const col = p.value ? L.c.text : L.c.muted, rightPad = p.kind === "dropdown" || p.kind === "password" ? 56 : 14;
+      if (p.kind === "multiline") drawLines(g, wrap(shown, r.w - 28, fnt(16)).slice(0, 4), tx, y + 10, r.w - 28, 22, fnt(16), col);
+      else txt(g, ellipsize(shown || "", r.x + r.w - rightPad - tx, fnt(16)), tx, y + 24, fnt(16), col);
+      if (p.kind === "dropdown") icon(g, "down", r.x + r.w - 26, y + 24, 20, L.c.muted);
+      if (p.kind === "password") txt(g, "Show", r.x + r.w - 14, y + 24, fnt(14, 600), L.acc, "right");
+    },
+    describe: p => `${({text:"Text field",password:"Password field",search:"Search field",dropdown:"Dropdown",multiline:"Multi-line text area"})[p.kind]}${p.label ? ` labelled "${p.label}"` : ""}${p.placeholder ? `, placeholder "${p.placeholder}"` : ""}${p.value ? `, shown filled with "${p.value}"` : ""}`,
+  },
+  toggle: {
+    label: "Toggle row", group: "Controls", glyph: "settings",
+    defaults: { label: "Notifications", sub: "", on: true },
+    fields: [F.text("label","Label"), F.text("sub","Description","Optional"), F.tog("on","Switched on")],
+    height: p => p.sub ? 60 : 44,
+    draw(g, p, r, L) {
+      const cy = r.y + r.h / 2;
+      if (p.sub) { txt(g, ellipsize(p.label, r.w - 70, fnt(16, 500)), r.x, cy - 10, fnt(16, 500), L.c.text); txt(g, ellipsize(p.sub, r.w - 70, fnt(13)), r.x, cy + 12, fnt(13), L.c.muted); }
+      else txt(g, ellipsize(p.label, r.w - 70, fnt(16, 500)), r.x, cy, fnt(16, 500), L.c.text);
+      drawSwitch(g, r.x + r.w - 50, cy - 15, p.on, L);
+    },
+    describe: p => `Toggle "${p.label}"${p.sub ? ` ("${p.sub}")` : ""} — ${p.on ? "on" : "off"}`,
+  },
+  checkbox: {
+    label: "Checkbox", group: "Controls", glyph: "check",
+    defaults: { label: "I agree to the terms", checked: false, round: false },
+    fields: [F.text("label","Label"), F.tog("checked","Checked"), F.tog("round","Round (radio style)")],
+    height: (p, L, w) => Math.max(28, wrap(p.label, w - 34, fnt(15)).length * 21),
+    draw(g, p, r, L) { drawCheckbox(g, r.x, r.y + 3, p.checked, L, p.round); drawLines(g, wrap(p.label, r.w - 34, fnt(15)), r.x + 34, r.y + 3, r.w - 34, 21, fnt(15), L.c.text); },
+    describe: p => `${p.round ? "Radio option" : "Checkbox"} "${p.label}" — ${p.checked ? "checked" : "unchecked"}`,
+  },
+  segmented: {
+    label: "Segmented", group: "Controls", glyph: "filter",
+    defaults: { items: "Day, Week, Month", selected: 1, style: "segmented" },
+    fields: [F.text("items","Options","Comma separated"), F.num("selected","Selected option",1,8), F.sel("style","Style",[["segmented","Segmented control"],["tabs","Underlined tabs"]])],
+    height: p => p.style === "tabs" ? 44 : 38,
+    draw(g, p, r, L) {
+      const it = csv(p.items); if (!it.length) return; const sw = r.w / it.length, sel = Number(p.selected) - 1;
+      if (p.style === "tabs") {
+        g.fillStyle = L.c.border; g.fillRect(r.x, r.y + r.h - 1, r.w, 1);
+        it.forEach((s, i) => { const on = i === sel; txt(g, ellipsize(s, sw - 8, fnt(15, 600)), r.x + sw * i + sw / 2, r.y + 20, fnt(15, 600), on ? L.acc : L.c.muted, "center");
+          if (on) { g.fillStyle = L.acc; g.fillRect(r.x + sw * i + 8, r.y + r.h - 3, sw - 16, 3); } });
+      } else {
+        const rad = Math.min(L.rad, 19); rr(g, r.x, r.y, r.w, r.h, rad); g.fillStyle = L.c.surface2; g.fill();
+        it.forEach((s, i) => { const on = i === sel;
+          if (on) { g.save(); g.shadowColor = "rgba(0,0,0,.12)"; g.shadowBlur = 4; rr(g, r.x + sw * i + 3, r.y + 3, sw - 6, r.h - 6, Math.max(0, rad - 3)); g.fillStyle = L.c.bg; g.fill(); g.restore(); }
+          txt(g, ellipsize(s, sw - 8, fnt(14, 600)), r.x + sw * i + sw / 2, r.y + r.h / 2 + 1, fnt(14, 600), on ? L.c.text : L.c.muted, "center"); });
+      }
+    },
+    describe: p => `${p.style === "tabs" ? "Underlined tabs" : "Segmented control"} — ${csv(p.items).map((t, i) => i + 1 === Number(p.selected) ? `${t} (selected)` : t).join(" · ")}`,
+  },
+  chips: {
+    label: "Chips", group: "Controls", glyph: "star",
+    defaults: { items: "All, Popular, New, Nearby", selected: 1 },
+    fields: [F.text("items","Chips","Comma separated"), F.text("selected","Selected","Positions, e.g. 1 or 1,3 — 0 for none")],
+    _layout(p, w) {
+      MG.font = fnt(14, 500); let x = 0, y = 0; const out = [];
+      for (const s of csv(p.items)) { const cw = Math.min(w, MG.measureText(s).width + 28); if (x && x + cw > w) { x = 0; y += 42; } out.push({ s, x, y, w: cw }); x += cw + 8; }
+      return { out, h: y + 34 };
+    },
+    height(p, L, w) { return this._layout(p, w).h; },
+    draw(g, p, r, L) {
+      const sel = csv(p.selected).map(Number);
+      this._layout(p, r.w).out.forEach((c, i) => { const on = sel.includes(i + 1);
+        rr(g, r.x + c.x + .5, r.y + c.y + .5, c.w - 1, 33, 17); g.fillStyle = on ? L.acc : L.c.surface; g.fill();
+        if (!on) { g.strokeStyle = L.c.border; g.lineWidth = 1; g.stroke(); }
+        txt(g, ellipsize(c.s, c.w - 20, fnt(14, 500)), r.x + c.x + c.w / 2, r.y + c.y + 17, fnt(14, 500), on ? L.onAcc : L.c.text, "center"); });
+    },
+    describe: p => { const sel = csv(p.selected).map(Number); return `Chips — ${csv(p.items).map((t, i) => sel.includes(i + 1) ? `${t} (selected)` : t).join(" · ")}`; },
+  },
+  progress: {
+    label: "Progress bar", group: "Controls", glyph: "chart",
+    defaults: { label: "Profile complete", value: 60 },
+    fields: [F.text("label","Label"), F.num("value","Value (%)",0,100)],
+    height: () => 40,
+    draw(g, p, r, L) {
+      const v = clamp(Number(p.value) || 0, 0, 100);
+      txt(g, ellipsize(p.label, r.w - 60, fnt(15, 500)), r.x, r.y + 9, fnt(15, 500), L.c.text);
+      txt(g, v + "%", r.x + r.w, r.y + 9, fnt(13, 600), L.c.muted, "right");
+      rr(g, r.x, r.y + 28, r.w, 8, 4); g.fillStyle = L.c.surface2; g.fill();
+      if (v) { rr(g, r.x, r.y + 28, Math.max(8, r.w * v / 100), 8, 4); g.fillStyle = L.acc; g.fill(); }
+    },
+    describe: p => `Progress bar "${p.label}" at ${p.value}%`,
+  },
+
+  image: {
+    label: "Image", group: "Content", glyph: "image",
+    defaults: { label: "Hero photo", size: "M", edge: false },
+    fields: [F.text("label","What the image shows"), F.sel("size","Height",[["S","Short (120)"],["M","Medium (200)"],["L","Tall (300)"],["XL","Very tall (420)"]]), F.tog("edge","Edge to edge")],
+    full: p => p.edge,
+    height: p => ({ S: 120, M: 200, L: 300, XL: 420 })[p.size] || 200,
+    draw(g, p, r, L) {
+      g.save(); rr(g, r.x, r.y, r.w, r.h, p.edge ? 0 : L.rad); g.fillStyle = L.c.surface2; g.fill(); g.clip();
+      g.strokeStyle = alpha(L.c.muted === THEMES.dark.muted ? "#FFFFFF" : "#000000", .05); g.lineWidth = 10;
+      for (let i = -r.h; i < r.w; i += 28) { g.beginPath(); g.moveTo(r.x + i, r.y + r.h); g.lineTo(r.x + i + r.h, r.y); g.stroke(); }
+      g.restore();
+      icon(g, "image", r.x + r.w / 2, r.y + r.h / 2 - (p.label ? 12 : 0), 34, L.c.muted, 1.6);
+      if (p.label) txt(g, ellipsize(p.label, r.w - 24, fnt(13, 500)), r.x + r.w / 2, r.y + r.h / 2 + 18, fnt(13, 500), L.c.muted, "center");
+    },
+    describe: p => `Image placeholder (${({S:"short",M:"medium",L:"tall",XL:"very tall"})[p.size]}${p.edge ? ", edge to edge" : ""}) — ${p.label || "image"}`,
+  },
+  card: {
+    label: "Card", group: "Content", glyph: "image",
+    defaults: { title: "Card title", subtitle: "A short description of the item.", meta: "", image: true, layout: "vertical" },
+    fields: [F.text("title","Title"), F.area("subtitle","Description"), F.text("meta","Small accent text","Optional, e.g. 5 min · $12"),
+      F.tog("image","Show image"), F.sel("layout","Layout",[["vertical","Image on top"],["horizontal","Thumbnail on the left"]])],
+    _text(p, w) {
+      const t = wrap(p.title, w, fnt(17, 600)), s = p.subtitle ? wrap(p.subtitle, w, fnt(14)) : [];
+      return { t, s, h: t.length * 22 + (s.length ? 4 + s.length * 20 : 0) + (p.meta ? 24 : 0) };
+    },
+    height(p, L, w) {
+      if (p.layout === "horizontal") { const tw = w - 24 - (p.image ? 88 : 0); return Math.max(p.image ? 100 : 0, this._text(p, tw).h + 28); }
+      return (p.image ? 150 : 0) + this._text(p, w - 28).h + 28;
+    },
+    draw(g, p, r, L) {
+      const rad = Math.min(L.rad, 20);
+      g.save(); rr(g, r.x, r.y, r.w, r.h, rad); g.fillStyle = L.c.surface; g.fill(); g.clip();
+      let tx = r.x + 14, ty = r.y + 14, tw = r.w - 28;
+      if (p.image && p.layout === "horizontal") { rr(g, r.x + 12, r.y + 12, 76, r.h - 24, Math.max(4, rad - 6)); g.fillStyle = L.c.surface2; g.fill(); icon(g, "image", r.x + 50, r.y + r.h / 2, 24, L.c.muted, 1.6); tx = r.x + 100; tw = r.w - 112; }
+      if (p.image && p.layout !== "horizontal") { g.fillStyle = L.c.surface2; g.fillRect(r.x, r.y, r.w, 150); icon(g, "image", r.x + r.w / 2, r.y + 75, 32, L.c.muted, 1.6); ty = r.y + 164; }
+      g.restore();
+      const m = this._text(p, tw);
+      if (p.layout === "horizontal") ty = r.y + (r.h - m.h) / 2;
+      drawLines(g, m.t, tx, ty, tw, 22, fnt(17, 600), L.c.text); ty += m.t.length * 22;
+      if (m.s.length) { ty += 4; drawLines(g, m.s, tx, ty, tw, 20, fnt(14), L.c.muted); ty += m.s.length * 20; }
+      if (p.meta) txt(g, ellipsize(p.meta, tw, fnt(13, 600)), tx, ty + 14, fnt(13, 600), L.acc);
+    },
+    describe: p => `Card (${p.image ? (p.layout === "horizontal" ? "thumbnail left" : "image on top") : "no image"}) — title "${p.title}"${p.subtitle ? `, description "${p.subtitle}"` : ""}${p.meta ? `, meta "${p.meta}"` : ""}`,
+  },
+  list: {
+    label: "List", group: "Content", glyph: "menu",
+    defaults: { title: "", items: "First item|Subtitle\nSecond item\nThird item", leading: "none", trailing: "chevron" },
+    fields: [F.text("title","Section label","Optional, shown above the list"),
+      F.area("items","Rows","One row per line. Add a subtitle after a | bar. Start with [x] to show a row as checked."),
+      F.sel("leading","Left side",[["none","Nothing"],["avatar","Avatar"],["icon","Icon"],["checkbox","Checkbox"]]),
+      F.sel("trailing","Right side",[["chevron","Chevron"],["toggle","Switch"],["none","Nothing"]])],
+    _rows: p => lines(p.items).map(l => { let done = false; if (/^\[x\]\s*/i.test(l)) { done = true; l = l.replace(/^\[x\]\s*/i, ""); } const [t, s] = l.split("|").map(x => (x || "").trim()); return { t, s, done }; }),
+    height(p) { const rows = this._rows(p); return (p.title ? 30 : 0) + rows.reduce((a, r) => a + (r.s ? 64 : 52), 0) || 52; },
+    draw(g, p, r, L) {
+      let y = r.y;
+      if (p.title) { txt(g, p.title.toUpperCase(), r.x + 4, y + 10, fnt(12, 600), L.c.muted); y += 30; }
+      const rows = this._rows(p), h = r.y + r.h - y, rad = Math.min(L.rad, 16);
+      g.save(); rr(g, r.x, y, r.w, h, rad); g.fillStyle = L.c.surface; g.fill(); g.clip();
+      rows.forEach((row, i) => {
+        const rh = row.s ? 64 : 52, cy = y + rh / 2; let tx = r.x + 16;
+        if (p.leading === "avatar") { g.beginPath(); g.arc(r.x + 36, cy, 20, 0, Math.PI * 2); g.fillStyle = L.c.surface2; g.fill(); txt(g, initials(row.t), r.x + 36, cy + 1, fnt(13, 700), L.c.muted, "center"); tx = r.x + 68; }
+        if (p.leading === "icon") { rr(g, r.x + 14, cy - 15, 30, 30, 8); g.fillStyle = L.acc; g.fill(); icon(g, iconFor(row.t), r.x + 29, cy, 18, L.onAcc); tx = r.x + 56; }
+        if (p.leading === "checkbox") { drawCheckbox(g, r.x + 16, cy - 11, row.done, L, true); tx = r.x + 50; }
+        const tw = r.x + r.w - tx - (p.trailing === "toggle" ? 70 : p.trailing === "chevron" ? 36 : 16);
+        const titleCol = row.done ? L.c.muted : L.c.text;
+        if (row.s) { txt(g, ellipsize(row.t, tw, fnt(16, 500)), tx, cy - 10, fnt(16, 500), titleCol); txt(g, ellipsize(row.s, tw, fnt(13)), tx, cy + 12, fnt(13), L.c.muted); }
+        else txt(g, ellipsize(row.t, tw, fnt(16, 500)), tx, cy, fnt(16, 500), titleCol);
+        if (row.done) { MG.font = fnt(16, 500); const tl = Math.min(tw, MG.measureText(row.t).width); g.fillStyle = L.c.muted; g.fillRect(tx, (row.s ? cy - 10 : cy), tl, 1.3); }
+        if (p.trailing === "chevron") icon(g, "chevron", r.x + r.w - 20, cy, 16, L.c.muted);
+        if (p.trailing === "toggle") drawSwitch(g, r.x + r.w - 64, cy - 15, i % 2 === 0, L);
+        if (i < rows.length - 1) { g.fillStyle = L.c.border; g.fillRect(tx, y + rh - .5, r.x + r.w - tx, 1); }
+        y += rh;
+      });
+      g.restore();
+    },
+    describe(p) {
+      const rows = this._rows(p);
+      const bits = [p.leading !== "none" && `${p.leading} on the left`, p.trailing !== "none" && `${p.trailing === "toggle" ? "switch" : "chevron"} on the right`].filter(Boolean).join(", ");
+      return `List${p.title ? ` "${p.title}"` : ""}${bits ? ` (${bits})` : ""} — ${rows.map(r => `${r.t}${r.s ? ` / ${r.s}` : ""}${r.done ? " [checked]" : ""}`).join("; ")}`;
+    },
+  },
+  profile: {
+    label: "Profile header", group: "Content", glyph: "user",
+    defaults: { name: "Alex Morgan", sub: "alex@example.com", layout: "center", button: "" },
+    fields: [F.text("name","Name"), F.text("sub","Subtitle"), F.sel("layout","Layout",[["center","Centered"],["inline","Avatar on the left"]]), F.text("button","Button label","Optional, e.g. Edit profile")],
+    height: p => p.layout === "inline" ? 72 : 88 + 12 + 28 + 22 + (p.button ? 50 : 0),
+    draw(g, p, r, L) {
+      if (p.layout === "inline") {
+        g.beginPath(); g.arc(r.x + 36, r.y + 36, 36, 0, Math.PI * 2); g.fillStyle = L.c.surface2; g.fill();
+        txt(g, initials(p.name), r.x + 36, r.y + 37, fnt(22, 700), L.c.muted, "center");
+        const bw = p.button ? 110 : 0, tw = r.w - 88 - bw;
+        txt(g, ellipsize(p.name, tw, fnt(19, 700)), r.x + 88, r.y + 26, fnt(19, 700), L.c.text);
+        txt(g, ellipsize(p.sub, tw, fnt(14)), r.x + 88, r.y + 49, fnt(14), L.c.muted);
+        if (p.button) drawButton(g, r.x + r.w - 104, r.y + 18, 104, 36, p.button, "outline", L);
+        return;
+      }
+      const cx = r.x + r.w / 2;
+      g.beginPath(); g.arc(cx, r.y + 44, 44, 0, Math.PI * 2); g.fillStyle = L.c.surface2; g.fill();
+      txt(g, initials(p.name), cx, r.y + 45, fnt(28, 700), L.c.muted, "center");
+      txt(g, ellipsize(p.name, r.w, fnt(21, 700)), cx, r.y + 114, fnt(21, 700), L.c.text, "center");
+      txt(g, ellipsize(p.sub, r.w, fnt(14)), cx, r.y + 139, fnt(14), L.c.muted, "center");
+      if (p.button) { MG.font = fnt(14, 600); const bw = MG.measureText(p.button).width + 40; drawButton(g, cx - bw / 2, r.y + 164, bw, 36, p.button, "outline", L); }
+    },
+    describe: p => `Profile header (${p.layout === "inline" ? "avatar left" : "centered"}) — avatar, name "${p.name}", subtitle "${p.sub}"${p.button ? `, button "${p.button}"` : ""}`,
+  },
+  stats: {
+    label: "Stat tiles", group: "Content", glyph: "chart",
+    defaults: { items: "1,284|Followers\n312|Following", columns: 2 },
+    fields: [F.area("items","Tiles","One per line: value | label"), F.sel("columns","Columns",[["2","2"],["3","3"],["4","4"]])],
+    _t: p => lines(p.items).map(l => { const [v, k] = l.split("|").map(x => (x || "").trim()); return { v, k }; }),
+    height(p) { const n = this._t(p).length || 1, c = Number(p.columns) || 2; return Math.ceil(n / c) * 84 + (Math.ceil(n / c) - 1) * 10; },
+    draw(g, p, r, L) {
+      const c = Number(p.columns) || 2, tw = (r.w - (c - 1) * 10) / c;
+      this._t(p).forEach((t, i) => { const x = r.x + (i % c) * (tw + 10), y = r.y + Math.floor(i / c) * 94;
+        rr(g, x, y, tw, 84, Math.min(L.rad, 18)); g.fillStyle = L.c.surface; g.fill();
+        txt(g, ellipsize(t.v || "", tw - 24, fnt(24, 700)), x + 14, y + 32, fnt(24, 700), L.c.text);
+        txt(g, ellipsize(t.k || "", tw - 24, fnt(13)), x + 14, y + 60, fnt(13), L.c.muted); });
+    },
+    describe(p) { return `Stat tiles (${p.columns} columns) — ${this._t(p).map(t => `${t.v} ${t.k}`).join("; ")}`; },
+  },
+  custom: {
+    label: "Custom block", group: "Content", glyph: "edit",
+    defaults: { title: "Something else", desc: "Describe what goes here — a map, a chart, a calendar…", size: "M" },
+    fields: [F.text("title","Name"), F.area("desc","Describe it","Claude reads this word for word"), F.sel("size","Height",[["S","Short (80)"],["M","Medium (160)"],["L","Tall (260)"]])],
+    height(p, L, w) { const d = wrap(p.desc, w - 40, fnt(13)).length * 18; return Math.max(({ S: 80, M: 160, L: 260 })[p.size] || 160, d + 80); },
+    draw(g, p, r, L) {
+      rr(g, r.x + 1, r.y + 1, r.w - 2, r.h - 2, Math.min(L.rad, 18)); g.setLineDash([6, 5]); g.strokeStyle = L.c.muted; g.lineWidth = 1.5; g.stroke(); g.setLineDash([]);
+      txt(g, "CUSTOM", r.x + 14, r.y + 16, fnt(10.5, 700), L.acc);
+      const d = wrap(p.desc, r.w - 40, fnt(13)), bh = 24 + d.length * 18, y = r.y + (r.h - bh) / 2;
+      txt(g, ellipsize(p.title, r.w - 40, fnt(16, 600)), r.x + r.w / 2, y + 10, fnt(16, 600), L.c.text, "center");
+      drawLines(g, d, r.x + 20, y + 26, r.w - 40, 18, fnt(13), L.c.muted, "center");
+    },
+    describe: p => `Custom block "${p.title}" — ${p.desc}`,
+  },
+
+  divider: {
+    label: "Divider", group: "Layout", glyph: "filter",
+    defaults: {}, fields: [], height: () => 9,
+    draw(g, p, r, L) { g.fillStyle = L.c.border; g.fillRect(r.x, r.y + 4, r.w, 1); },
+    describe: () => "Divider line",
+  },
+  spacer: {
+    label: "Spacer", group: "Layout", glyph: "more",
+    defaults: { size: "M" }, fields: [F.sel("size","Size",[["S","Small (8)"],["M","Medium (24)"],["L","Large (48)"]])],
+    height: p => ({ S: 8, M: 24, L: 48 })[p.size] || 24,
+    draw() {}, describe: p => `Extra space (${({S:"small",M:"medium",L:"large"})[p.size]})`,
+  },
+};
+const GROUPS = ["Structure", "Text", "Controls", "Content", "Layout"];
+
+/* ---------------- model ---------------- */
+const mk = (type, props = {}, note = "") => ({ id: uid(), type, props: { ...structuredClone(C[type].defaults), ...props }, note });
+function exampleProject() {
+  return {
+    name: "Habitly (example)", device: "phone", theme: { mode: "light", accent: "#3457D5", radius: 14 },
+    screens: [
+      { id: uid(), name: "Today", notes: "Home screen. Shows today's habits and how close the user is to their weekly goal.", statusBar: true, items: [
+        mk("navbar", { title: "Today", left: "menu", right: "plus", large: true }),
+        mk("segmented", { items: "Day, Week, Month", selected: 1 }),
+        mk("stats", { items: "6 / 8|Habits done\n12 days|Current streak", columns: 2 }),
+        mk("progress", { label: "Weekly goal", value: 72 }),
+        mk("list", { title: "Today's habits", items: "[x] Drink water|8 glasses\n[x] Morning run|3 km\nRead|20 pages\nMeditate|10 minutes", leading: "checkbox", trailing: "chevron" },
+           "Tapping the circle checks the habit off with a strike-through and updates the 6 / 8 counter above."),
+        mk("tabbar", { items: "Today\nStats\nProfile", selected: 1 }),
+      ]},
+      { id: uid(), name: "New habit", notes: "Opens as a full-screen sheet from the + button.", statusBar: true, items: [
+        mk("navbar", { title: "New habit", left: "close", right: "none" }),
+        mk("input", { label: "Name", placeholder: "e.g. Drink water" }),
+        mk("input", { label: "Repeat", placeholder: "Every day", kind: "dropdown" }),
+        mk("heading", { text: "Time of day", size: "S" }),
+        mk("chips", { items: "Morning, Afternoon, Evening, Anytime", selected: "1" }),
+        mk("toggle", { label: "Reminder", sub: "Notify me at 8:00 AM", on: true }),
+        mk("custom", { title: "Icon picker", desc: "Grid of 12 habit icons, 4 per row. The selected icon gets an accent ring.", size: "M" }, "Icons should be simple line icons, not emoji."),
+        mk("footer", { label: "Create habit" }),
+      ]},
+      { id: uid(), name: "Profile", notes: "", statusBar: true, items: [
+        mk("navbar", { title: "Profile", left: "none", right: "settings" }),
+        mk("profile", { name: "Sam Rivera", sub: "Member since March 2026", button: "Edit profile" }),
+        mk("stats", { items: "142|Check-ins\n21|Best streak\n8|Habits", columns: 3 }),
+        mk("list", { title: "Settings", items: "Notifications\nAppearance|Light\nExport data\nHelp & feedback", leading: "icon", trailing: "chevron" }),
+        mk("button", { label: "Sign out", style: "text" }),
+        mk("tabbar", { items: "Today\nStats\nProfile", selected: 3 }),
+      ]},
+    ],
+  };
+}
+function blankProject() {
+  return { name: "My app", device: "phone", theme: { mode: "light", accent: "#3457D5", radius: 12 },
+    screens: [{ id: uid(), name: "Screen 1", notes: "", statusBar: true, items: [mk("navbar", { title: "Screen 1", left: "none" })] }] };
+}
+function sanitize(p) {
+  if (!p || !Array.isArray(p.screens) || !p.screens.length) throw new Error("bad");
+  p.name = String(p.name || "My app"); if (!DEVICES[p.device]) p.device = "phone";
+  p.theme = { mode: p.theme?.mode === "dark" ? "dark" : "light", accent: /^#[0-9a-f]{6}$/i.test(p.theme?.accent) ? p.theme.accent : "#3457D5", radius: clamp(Number(p.theme?.radius ?? 12), 0, 28) };
+  p.screens = p.screens.map((s, i) => ({ id: s.id || uid(), name: String(s.name || `Screen ${i + 1}`), notes: String(s.notes || ""), statusBar: s.statusBar !== false,
+    items: (s.items || []).filter(it => C[it.type]).map(it => ({ id: it.id || uid(), type: it.type, note: String(it.note || ""), props: { ...structuredClone(C[it.type].defaults), ...(it.props || {}) } })) }));
+  return p;
+}
+
+/* ---------------- layout ---------------- */
+function ordered(screen) {
+  const by = k => screen.items.filter(i => (C[i.type].pin || "flow") === k);
+  return { top: by("top"), flow: by("flow"), bottom: by("bottom"), float: by("float") };
+}
+function layoutScreen(screen, project) {
+  const D = DEVICES[project.device], W = D.w, c = THEMES[project.theme.mode], acc = project.theme.accent;
+  const colW = Math.min(W - D.pad * 2, D.max);
+  const L = { c, acc, onAcc: onColor(acc), rad: project.theme.radius, dev: D, W, colW };
+  const colX = (W - colW) / 2, o = ordered(screen), rects = [];
+  const status = screen.statusBar && D.status ? D.status : 0;
+  let y = status;
+  for (const it of o.top) { const h = C[it.type].height(it.props, L, W); rects.push({ it, x: 0, y, w: W, h }); y += h; }
+  if (o.flow.length) {
+    y += 18;
+    for (const it of o.flow) {
+      const def = C[it.type], full = def.full === true || (typeof def.full === "function" && def.full(it.props));
+      const x = full ? 0 : colX, w = full ? W : colW, h = def.height(it.props, L, w);
+      rects.push({ it, x, y, w, h }); y += h + 16;
+    }
+    y += 8;
+  }
+  const bottomH = o.bottom.reduce((a, it) => a + C[it.type].height(it.props, L, W), 0);
+  const H = Math.max(D.h, y + bottomH + (o.float.length ? 80 : 0));
+  let by = H - bottomH;
+  for (const it of o.bottom) { const h = C[it.type].height(it.props, L, W); rects.push({ it, x: 0, y: by, w: W, h }); by += h; }
+  let fy = H - bottomH - 16 - (bottomH ? 0 : D.home);
+  for (const it of o.float) { const [fw, fh] = C.fab.size(it.props); fy -= fh; rects.push({ it, x: W - (W - colW) / 2 - fw, y: fy, w: fw, h: fh }); fy -= 12; }
+  return { W, H, L, rects, status, D, screen };
+}
+function noteNumbers(screen) {
+  const o = ordered(screen), m = new Map(); let n = 0;
+  for (const it of [...o.top, ...o.flow, ...o.bottom, ...o.float]) if (it.note && it.note.trim()) m.set(it.id, ++n);
+  return m;
+}
+
+/* ---------------- rendering ---------------- */
+function drawScreen(g, lay, opts = {}) {
+  const { W, H, L, rects, status, D, screen } = lay;
+  g.fillStyle = L.c.bg; g.fillRect(0, 0, W, H);
+  if (!screen.items.length) {
+    txt(g, "Empty screen", W / 2, H / 2 - 12, fnt(17, 600), L.c.muted, "center");
+    txt(g, "Add components from the panel", W / 2, H / 2 + 14, fnt(14), L.c.muted, "center");
+  }
+  const draw = r => { g.save(); C[r.it.type].draw(g, r.it.props, r, L); g.restore(); };
+  rects.filter(r => !C[r.it.type].pin).forEach(draw);
+  rects.filter(r => C[r.it.type].pin === "top" || C[r.it.type].pin === "bottom").forEach(draw);
+  rects.filter(r => C[r.it.type].pin === "float").forEach(draw);
+  if (status) {
+    const sbBg = rects.find(r => C[r.it.type].pin === "top" && r.it.props.filled) ? L.acc : L.c.bg;
+    g.fillStyle = sbBg; g.fillRect(0, 0, W, status); const col = sbBg === L.acc ? L.onAcc : L.c.text;
+    if (D === DEVICES.phone) {
+      txt(g, "9:41", 54, 28, fnt(16, 600), col, "center");
+      [4, 6.5, 9, 11.5].forEach((h, i) => { rr(g, W - 92 + i * 5, 32 - h, 3, h, 1); g.fillStyle = col; g.fill(); });
+      g.strokeStyle = col; g.lineWidth = 1.8; for (let i = 0; i < 2; i++) { g.beginPath(); g.arc(W - 63, 33, 4 + i * 4, -Math.PI * .75, -Math.PI * .25); g.stroke(); }
+      rr(g, W - 49, 21.5, 25, 12, 3.5); g.lineWidth = 1; g.globalAlpha = .45; g.stroke(); g.globalAlpha = 1; rr(g, W - 47, 23.5, 19, 8, 2); g.fillStyle = col; g.fill();
+    } else {
+      txt(g, "9:41  Tue 19 Nov", 20, 15, fnt(12, 600), col);
+      rr(g, W - 44, 9, 24, 11, 3); g.strokeStyle = col; g.globalAlpha = .45; g.lineWidth = 1; g.stroke(); g.globalAlpha = 1; rr(g, W - 42, 11, 17, 7, 1.5); g.fillStyle = col; g.fill();
+      txt(g, "100%", W - 50, 15, fnt(12, 600), col, "right");
+    }
+  }
+  if (opts.edit) {
+    for (const r of rects) {
+      const sel = r.it.id === opts.selected, hov = r.it.id === opts.hover;
+      if (!sel && !hov && r.it.type !== "spacer") continue;
+      g.save(); g.lineWidth = sel ? 2 : 1.5; g.strokeStyle = sel ? opts.ui : alpha(opts.ui, .55);
+      if (!sel && !hov) { g.setLineDash([3, 4]); g.strokeStyle = alpha(L.c.muted, .5); g.lineWidth = 1; }
+      g.strokeRect(r.x + 1, r.y + 1, r.w - 2, r.h - 2); g.restore();
+    }
+  }
+  if (opts.notes) {
+    for (const r of rects) {
+      const n = opts.notes.get(r.it.id); if (!n) continue;
+      const bx = Math.min(r.x + r.w - 4, W - 16), by = Math.max(r.y + 4, 16);
+      g.save(); g.shadowColor = "rgba(0,0,0,.25)"; g.shadowBlur = 4;
+      g.beginPath(); g.arc(bx, by, 12, 0, Math.PI * 2); g.fillStyle = NOTE_COLOR; g.fill(); g.restore();
+      g.lineWidth = 2; g.strokeStyle = "#fff"; g.stroke();
+      txt(g, String(n), bx, by + 1, fnt(12, 800), "#fff", "center");
+    }
+  }
+}
+function frameOf(lay) {
+  const k = lay.D === DEVICES.phone ? "phone" : lay.D === DEVICES.tablet ? "tablet" : "web";
+  if (k === "phone") return { k, b: 13, top: 13, w: lay.W + 26, h: lay.H + 26, outer: 56, inner: 44 };
+  if (k === "tablet") return { k, b: 18, top: 18, w: lay.W + 36, h: lay.H + 36, outer: 38, inner: 22 };
+  return { k, b: 1, top: 41, w: lay.W + 2, h: lay.H + 42, outer: 12, inner: 0 };
+}
+function drawDevice(g, lay, opts) {
+  const f = frameOf(lay), tall = lay.H > lay.D.h;
+  g.save();
+  if (f.k === "web") {
+    rr(g, 0, 0, f.w, f.h, f.outer); g.fillStyle = "#D9DCE2"; g.fill();
+    g.save(); rr(g, 1, 1, f.w - 2, 40, 11); g.fillStyle = "#ECEEF1"; g.fill(); g.restore();
+    ["#FF5F57", "#FEBC2E", "#28C840"].forEach((c, i) => { g.beginPath(); g.arc(20 + i * 20, 21, 6, 0, Math.PI * 2); g.fillStyle = c; g.fill(); });
+    rr(g, f.w / 2 - 220, 10, 440, 22, 7); g.fillStyle = "#FFFFFF"; g.fill();
+    txt(g, (opts.app || "app").toLowerCase().replace(/[^a-z0-9]+/g, "") + ".com", f.w / 2, 21.5, fnt(12, 500), "#6B7280", "center");
+  } else {
+    rr(g, 0, 0, f.w, f.h, f.outer); g.fillStyle = "#16181C"; g.fill();
+    rr(g, 1.5, 1.5, f.w - 3, f.h - 3, f.outer - 1.5); g.strokeStyle = "#3A3D44"; g.lineWidth = 1.5; g.stroke();
+  }
+  g.save(); rr(g, f.b, f.top, lay.W, lay.H, f.inner); g.clip(); g.translate(f.b, f.top);
+  drawScreen(g, lay, opts);
+  if (f.k === "phone") {
+    if (lay.status) { rr(g, lay.W / 2 - 62, 11, 124, 35, 18); g.fillStyle = "#000"; g.fill(); }
+    rr(g, lay.W / 2 - 67, lay.H - 9, 134, 5, 3); g.fillStyle = lay.L.c.text; g.globalAlpha = .85; g.fill(); g.globalAlpha = 1;
+  }
+  if (tall && opts.edit) { // mark where the visible screen ends on a scrolling page
+    g.setLineDash([8, 6]); g.strokeStyle = alpha(opts.ui || "#3457D5", .6); g.lineWidth = 1.5;
+    g.beginPath(); g.moveTo(0, lay.D.h); g.lineTo(lay.W, lay.D.h); g.stroke(); g.setLineDash([]);
+    txt(g, "fold — content below scrolls", lay.W - 10, lay.D.h - 10, fnt(11, 600), alpha(opts.ui || "#3457D5", .8), "right");
+  }
+  g.restore(); g.restore();
+  return f;
+}
+
+/* ---------------- state ---------------- */
+const STORE = "appsculptor:v1";
+let project, cur = 0, selected = null, hover = null, zoom = "fit";
+let hist = [], hp = -1, commitTimer = null;
+function loadInitial() {
+  try { const raw = localStorage.getItem(STORE); if (raw) { const s = JSON.parse(raw); project = sanitize(s.project); cur = clamp(s.cur || 0, 0, project.screens.length - 1); return; } } catch {}
+  project = exampleProject();
+}
+const screen = () => project.screens[cur];
+const findItem = id => screen().items.find(i => i.id === id);
+function persist() { try { localStorage.setItem(STORE, JSON.stringify({ project, cur })); } catch {} }
+function commit(now = true) {
+  clearTimeout(commitTimer);
+  const go = () => { const snap = JSON.stringify({ project, cur, selected }); if (hist[hp] === snap) return; hist = hist.slice(0, hp + 1); hist.push(snap); if (hist.length > 150) hist.shift(); hp = hist.length - 1; persist(); syncUndo(); };
+  if (now) go(); else commitTimer = setTimeout(go, 500);
+}
+function restore(snap) { const s = JSON.parse(snap); project = sanitize(s.project); cur = clamp(s.cur, 0, project.screens.length - 1); selected = s.selected && findItem(s.selected) ? s.selected : null; persist(); renderAll(); }
+function undo() { clearTimeout(commitTimer); commit(true); if (hp > 0) { hp--; restore(hist[hp]); syncUndo(); } }
+function redo() { if (hp < hist.length - 1) { hp++; restore(hist[hp]); syncUndo(); } }
+function syncUndo() { $("#undoBtn").disabled = hp <= 0; $("#redoBtn").disabled = hp >= hist.length - 1; }
+
+/* ---------------- DOM helpers ---------------- */
+const $ = s => document.querySelector(s);
+const el = (tag, attrs = {}, ...kids) => {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) { if (k === "class") e.className = v; else if (k.startsWith("on")) e.addEventListener(k.slice(2), v); else if (v === true) e.setAttribute(k, ""); else if (v !== false && v != null) e.setAttribute(k, v); }
+  for (const k of kids.flat()) if (k != null) e.append(k.nodeType ? k : document.createTextNode(k));
+  return e;
+};
+const uiAccent = () => getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#3457D5";
+let toastTimer;
+function toast(msg, action) {
+  const t = $("#toast"); t.replaceChildren(el("span", {}, msg)); if (action) t.append(el("button", { onclick: () => { action.fn(); t.hidden = true; } }, action.label));
+  t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, action ? 6000 : 2600);
+}
+const isMobile = () => matchMedia("(max-width: 999px)").matches;
+function setTab(name) {
+  document.body.dataset.mtab = name;
+  document.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === name)));
+  ["component", "screen", "style"].forEach(p => $("#pane-" + p).hidden = !(p === name || (name === "add" && !isMobile() && p === "component")));
+}
+
+/* ---------------- canvas view ---------------- */
+const view = $("#view"); let lastLay = null, lastFrame = null;
+function renderCanvas() {
+  const lay = layoutScreen(screen(), project), f = frameOf(lay), dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+  view.width = Math.round(f.w * dpr); view.height = Math.round(f.h * dpr);
+  const wrapW = view.parentElement.clientWidth - 32;
+  let cssW = zoom === "fit" ? Math.min(f.w, wrapW, isMobile() ? (f.k === "phone" ? 330 : wrapW) : f.w) : f.w;
+  if (zoom === "fit" && !isMobile()) { const avail = $("#stage").clientHeight - 110; if (f.k !== "web" && lay.H === lay.D.h) cssW = Math.min(cssW, f.w * avail / f.h); cssW = Math.max(cssW, Math.min(260, f.w)); }
+  view.style.width = cssW + "px"; view.style.maxWidth = zoom === "fit" ? "100%" : "none";
+  const g = view.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, f.w, f.h);
+  drawDevice(g, lay, { edit: true, selected, hover, ui: uiAccent(), notes: noteNumbers(screen()), app: project.name });
+  lastLay = lay; lastFrame = f;
+}
+function hitTest(ev) {
+  if (!lastLay) return null; const b = view.getBoundingClientRect(), s = lastFrame.w / b.width;
+  const x = (ev.clientX - b.left) * s - lastFrame.b, y = (ev.clientY - b.top) * s - lastFrame.top;
+  const order = [...lastLay.rects].sort((a, c) => (C[c.it.type].pin === "float") - (C[a.it.type].pin === "float") || (!!C[c.it.type].pin) - (!!C[a.it.type].pin));
+  const hit = order.find(r => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h);
+  return hit ? hit.it.id : null;
+}
+view.addEventListener("click", ev => { selected = hitTest(ev); renderCanvas(); renderInspector(); renderScreenPane(); if (selected) setTab("component"); });
+view.addEventListener("pointermove", ev => { if (ev.pointerType !== "mouse") return; const h = hitTest(ev); if (h !== hover) { hover = h; renderCanvas(); } });
+view.addEventListener("pointerleave", () => { if (hover) { hover = null; renderCanvas(); } });
+
+/* ---------------- palette ---------------- */
+function renderPalette() {
+  const root = $("#palette"); root.replaceChildren();
+  const pal = getComputedStyle(document.documentElement);
+  for (const grp of GROUPS) {
+    root.append(el("div", { class: "group-label" }, grp));
+    const box = el("div", { class: "palette" });
+    for (const [type, def] of Object.entries(C)) {
+      if (def.group !== grp) continue;
+      const cv = el("canvas", { width: 56, height: 56, "aria-hidden": "true" });
+      const g = cv.getContext("2d"); rr(g, 0, 0, 56, 56, 12); g.fillStyle = pal.getPropertyValue("--accent-soft").trim(); g.fill();
+      icon(g, def.glyph, 28, 28, 30, pal.getPropertyValue("--accent").trim(), 2);
+      box.append(el("button", { class: "pal", title: `Add ${def.label}`, onclick: () => addItem(type) }, cv, el("span", {}, def.label)));
+    }
+    root.append(box);
+  }
+}
+function addItem(type) {
+  const s = screen(), it = mk(type);
+  if (type === "navbar") it.props.title = s.name;
+  const idx = selected ? s.items.findIndex(i => i.id === selected) : -1;
+  if (idx >= 0) s.items.splice(idx + 1, 0, it); else s.items.push(it);
+  selected = it.id; commit(); renderAll();
+  if (isMobile()) { setTab("component"); toast(`Added ${C[type].label}`); }
+}
+
+/* ---------------- inspector ---------------- */
+function fieldControl(f, obj, onChange) {
+  const id = "f_" + f.key + "_" + Math.random().toString(36).slice(2, 6);
+  if (f.kind === "toggle") {
+    const inp = el("input", { type: "checkbox", id }); inp.checked = !!obj[f.key];
+    inp.addEventListener("change", () => { obj[f.key] = inp.checked; onChange(true); });
+    return el("label", { class: "check", for: id }, inp, f.label);
+  }
+  let inp;
+  if (f.kind === "select") { inp = el("select", { id }, f.options.map(([v, l]) => el("option", { value: v }, l))); inp.value = String(obj[f.key]); }
+  else if (f.kind === "area") { inp = el("textarea", { id, rows: Math.min(6, Math.max(2, String(obj[f.key] || "").split("\n").length + 1)) }); inp.value = obj[f.key] ?? ""; }
+  else { inp = el("input", { id, type: f.kind === "number" ? "number" : "text", min: f.min, max: f.max, spellcheck: "false" }); inp.value = obj[f.key] ?? ""; }
+  const ev = f.kind === "select" ? "change" : "input";
+  inp.addEventListener(ev, () => { obj[f.key] = f.kind === "number" ? clamp(Number(inp.value) || 0, f.min ?? -1e9, f.max ?? 1e9) : f.kind === "select" && /^\d+$/.test(inp.value) && typeof obj[f.key] === "number" ? Number(inp.value) : inp.value; onChange(f.kind === "select"); });
+  return el("div", { class: "field" }, el("label", { for: id }, f.label), inp, f.sub ? el("div", { class: "sub" }, f.sub) : null);
+}
+function renderInspector() {
+  const pane = $("#pane-component"); pane.replaceChildren();
+  const it = selected && findItem(selected);
+  if (!it) {
+    pane.append(el("div", { class: "empty" }, "Select a component on the screen to edit it, or add one from the ", isMobile() ? "Add tab." : "panel on the left."));
+    return;
+  }
+  const def = C[it.type], s = screen();
+  const changed = immediate => { renderCanvas(); if (immediate) { commit(); renderScreenPane(); } else { commit(false); clearTimeout(changed.t); changed.t = setTimeout(renderScreenPane, 400); } };
+  pane.append(el("div", { class: "comp-head" }, el("h2", {}, def.label), el("small", {}, def.pin === "top" ? "Pinned to top" : def.pin === "bottom" ? "Pinned to bottom" : def.pin === "float" ? "Floats bottom-right" : `Item ${s.items.filter(i => !C[i.type].pin).indexOf(it) + 1} of ${s.items.filter(i => !C[i.type].pin).length}`)));
+  def.fields.forEach(f => pane.append(fieldControl(f, it.props, changed)));
+  const noteF = fieldControl({ key: "note", label: "Note for Claude", kind: "area", sub: "Behavior, data, or anything the picture can't show. Appears as a numbered marker." }, it, imm => { changed(imm); });
+  noteF.classList.add("note-field"); pane.append(noteF);
+  pane.append(el("div", { class: "row" },
+    el("button", { class: "btn sm", onclick: () => move(it.id, -1) }, "↑ Move up"),
+    el("button", { class: "btn sm", onclick: () => move(it.id, 1) }, "↓ Move down"),
+    el("button", { class: "btn sm", onclick: () => duplicate(it.id) }, "Duplicate"),
+    el("button", { class: "btn sm danger", onclick: () => removeItem(it.id) }, "Delete")));
+}
+function move(id, d) {
+  const items = screen().items, i = items.findIndex(x => x.id === id); if (i < 0) return;
+  const pin = C[items[i].type].pin || "flow"; let j = i + d;
+  while (j >= 0 && j < items.length && (C[items[j].type].pin || "flow") !== pin) j += d;
+  if (j < 0 || j >= items.length) return;
+  [items[i], items[j]] = [items[j], items[i]]; commit(); renderAll();
+}
+function duplicate(id) { const items = screen().items, i = items.findIndex(x => x.id === id); const c = structuredClone(items[i]); c.id = uid(); items.splice(i + 1, 0, c); selected = c.id; commit(); renderAll(); }
+function removeItem(id) { const items = screen().items, i = items.findIndex(x => x.id === id); const label = C[items[i].type].label; items.splice(i, 1); selected = null; commit(); renderAll(); toast(`${label} deleted`, { label: "Undo", fn: undo }); }
+
+/* ---------------- screen pane ---------------- */
+function renderScreenTabs() {
+  const root = $("#screenTabs"); root.replaceChildren();
+  project.screens.forEach((s, i) => root.append(el("button", { class: "stab", role: "tab", "aria-selected": String(i === cur), onclick: () => { if (i !== cur) { cur = i; selected = null; commit(); renderAll(); } else setTab("screen"); } }, `${i + 1}. ${s.name}`)));
+  root.append(el("button", { class: "stab add", onclick: addScreen }, "+ Screen"));
+}
+function addScreen() {
+  const n = project.screens.length + 1, prev = screen();
+  const tab = prev.items.find(i => i.type === "tabbar");
+  const s = { id: uid(), name: `Screen ${n}`, notes: "", statusBar: true, items: [mk("navbar", { title: `Screen ${n}`, left: "back" })] };
+  if (tab) s.items.push({ ...structuredClone(tab), id: uid() });
+  project.screens.push(s); cur = project.screens.length - 1; selected = null; commit(); renderAll(); setTab("screen");
+}
+function renderScreenPane() {
+  const pane = $("#pane-screen"), s = screen(); pane.replaceChildren();
+  const onCh = imm => { renderCanvas(); if (imm) commit(); else commit(false); clearTimeout(onCh.t); onCh.t = setTimeout(renderScreenTabs, 250); };
+  pane.append(fieldControl({ key: "name", label: "Screen name", kind: "text" }, s, onCh));
+  pane.append(fieldControl({ key: "notes", label: "What this screen is for", kind: "area", sub: "Goes at the top of this screen's section in the brief." }, s, onCh));
+  if (project.device !== "web") pane.append(fieldControl({ key: "statusBar", label: "Show status bar", kind: "toggle" }, s, onCh));
+  pane.append(el("div", { class: "flabel" }, "Components (top to bottom)"));
+  const o = ordered(s), nums = noteNumbers(s), list = el("div", { class: "layers" });
+  const all = [...o.top, ...o.flow, ...o.bottom, ...o.float];
+  if (!all.length) list.append(el("div", { class: "empty", style: "border:0" }, "No components yet."));
+  for (const it of all) {
+    const def = C[it.type], sum = summary(it);
+    list.append(el("div", { class: "layer", role: "button", tabindex: "0", "aria-current": String(it.id === selected),
+      onclick: e => { if (e.target.closest("[data-mv]")) return; selected = it.id; renderAll(); setTab("component"); },
+      onkeydown: e => { if (e.key === "Enter") { selected = it.id; renderAll(); setTab("component"); } } },
+      el("span", { class: "lt" }, el("b", {}, def.label), sum ? " · " + sum : ""),
+      nums.get(it.id) ? el("span", { class: "nb", title: "Has a note" }, String(nums.get(it.id))) : null,
+      def.pin ? el("span", { class: "pin" }, def.pin === "float" ? "float" : def.pin) : null,
+      el("span", { class: "mv" },
+        el("span", { "data-mv": "1", role: "button", tabindex: "0", "aria-label": "Move up", onclick: () => move(it.id, -1) }, "↑"),
+        el("span", { "data-mv": "1", role: "button", tabindex: "0", "aria-label": "Move down", onclick: () => move(it.id, 1) }, "↓"))));
+  }
+  pane.append(list);
+  pane.append(el("div", { class: "row" },
+    el("button", { class: "btn sm", disabled: cur === 0, onclick: () => moveScreen(-1) }, "← Move left"),
+    el("button", { class: "btn sm", disabled: cur === project.screens.length - 1, onclick: () => moveScreen(1) }, "Move right →"),
+    el("button", { class: "btn sm", onclick: dupScreen }, "Duplicate screen"),
+    el("button", { class: "btn sm danger", disabled: project.screens.length < 2, onclick: delScreen }, "Delete screen")));
+}
+function summary(it) {
+  const p = it.props; const s = p.title || p.label || p.text || p.name || (p.items ? lines(p.items.replace(/,/g, "\n"))[0] : "") || "";
+  return String(s).replace(/^\[x\]\s*/i, "").split("|")[0].slice(0, 40);
+}
+function moveScreen(d) { const j = cur + d; [project.screens[cur], project.screens[j]] = [project.screens[j], project.screens[cur]]; cur = j; commit(); renderAll(); }
+function dupScreen() { const c = structuredClone(screen()); c.id = uid(); c.name += " copy"; c.items.forEach(i => i.id = uid()); project.screens.splice(cur + 1, 0, c); cur++; selected = null; commit(); renderAll(); }
+function delScreen() { const name = screen().name; project.screens.splice(cur, 1); cur = Math.max(0, cur - 1); selected = null; commit(); renderAll(); toast(`"${name}" deleted`, { label: "Undo", fn: undo }); }
+
+/* ---------------- style pane ---------------- */
+function renderStylePane() {
+  const pane = $("#pane-style"); pane.replaceChildren();
+  const seg = (label, opts, val, set) => el("div", { class: "field" }, el("span", { class: "flabel" }, label),
+    el("div", { class: "seg", role: "group", "aria-label": label }, opts.map(([v, l]) => el("button", { "aria-pressed": String(v === val), onclick: () => { set(v); commit(); renderAll(); } }, l))));
+  pane.append(seg("Device", Object.entries(DEVICES).map(([k, d]) => [k, d.label]), project.device, v => project.device = v));
+  pane.append(seg("App theme", [["light", "Light"], ["dark", "Dark"]], project.theme.mode, v => project.theme.mode = v));
+  const color = el("input", { type: "color", id: "accentPick", "aria-label": "Custom accent color" }); color.value = project.theme.accent;
+  color.addEventListener("input", () => { project.theme.accent = color.value; renderCanvas(); commit(false); });
+  color.addEventListener("change", () => { commit(); renderStylePane(); });
+  pane.append(el("div", { class: "field" }, el("span", { class: "flabel" }, "Accent color"),
+    el("div", { class: "swatches" }, ACCENTS.map(c => el("button", { class: "sw", style: `background:${c}`, "aria-label": c, "aria-pressed": String(c.toLowerCase() === project.theme.accent.toLowerCase()), onclick: () => { project.theme.accent = c; commit(); renderAll(); } })), color)));
+  const range = el("input", { type: "range", min: 0, max: 28, step: 1, id: "radiusR" }); range.value = project.theme.radius;
+  const rv = el("span", {}, project.theme.radius + " px");
+  range.addEventListener("input", () => { project.theme.radius = Number(range.value); rv.textContent = range.value + " px"; renderCanvas(); commit(false); });
+  pane.append(el("div", { class: "field" }, el("label", { for: "radiusR", class: "flabel" }, "Corner roundness — ", rv), range));
+  pane.append(el("p", { class: "hint", style: "margin:4px 0 0" }, "These settings apply to every screen and are written into the brief, so Claude knows your colors and shapes."));
+}
+
+/* ---------------- brief + export ---------------- */
+function buildBrief() {
+  const D = DEVICES[project.device], out = [];
+  out.push(`# UI mockup: ${project.name}`, "",
+    `Please build the UI shown in the attached mockup image. This brief describes the same screens in words, top to bottom. Numbered pink markers in the image match the numbered notes below.`, "",
+    `- **Platform:** ${D.label} (${D.w} × ${D.h} pt)`,
+    `- **Theme:** ${project.theme.mode === "dark" ? "Dark" : "Light"} · accent color ${project.theme.accent.toUpperCase()} · corner radius ${project.theme.radius}px`,
+    `- **Screens (${project.screens.length}):** ${project.screens.map(s => s.name).join(" → ")}`, "");
+  project.screens.forEach((s, si) => {
+    const o = ordered(s), nums = noteNumbers(s);
+    const line = (it, prefix) => { const n = nums.get(it.id); const l = [`${prefix} ${C[it.type].describe.call(C[it.type], it.props)}`]; if (n) l.push(`   - **Note ${n}:** ${it.note.trim().replace(/\n+/g, " ")}`); return l; };
+    out.push("---", "", `## Screen ${si + 1}: ${s.name}`, "");
+    if (s.notes.trim()) out.push(`> ${s.notes.trim().replace(/\n+/g, "\n> ")}`, "");
+    if (o.top.length) { out.push("**Top (fixed):**"); o.top.forEach(it => out.push(...line(it, "-"))); out.push(""); }
+    if (o.flow.length) { out.push("**Content (scrolls, top → bottom):**"); o.flow.forEach((it, i) => out.push(...line(it, `${i + 1}.`))); out.push(""); }
+    if (o.bottom.length) { out.push("**Bottom (fixed):**"); o.bottom.forEach(it => out.push(...line(it, "-"))); out.push(""); }
+    if (o.float.length) { out.push("**Floating:**"); o.float.forEach(it => out.push(...line(it, "-"))); out.push(""); }
+    if (!s.items.length) out.push("_(empty screen)_", "");
+  });
+  out.push("---", "", "Treat the mockup as the layout and hierarchy to follow; exact pixel sizes are approximate. Image boxes are placeholders. If something is ambiguous, ask before inventing new screens.");
+  return out.join("\n");
+}
+function slug() { return (project.name.replace(/\(example\)/i, "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "app") + "-mockup"; }
+function renderExport(only) {
+  const screens = only != null ? [project.screens[only]] : project.screens;
+  const items = screens.map(s => { const lay = layoutScreen(s, project); return { s, lay, f: frameOf(lay), nums: noteNumbers(s), idx: project.screens.indexOf(s) }; });
+  const M = 64, GAP = 72, HEAD = 96;
+  for (const it of items) {
+    const w = it.f.w; let h = 0;
+    const purpose = it.s.notes.trim() ? wrap(it.s.notes.trim(), w, fnt(15)) : [];
+    const notes = [...it.nums.entries()].map(([id, n]) => ({ n, ls: wrap(it.s.items.find(x => x.id === id).note.trim(), w - 34, fnt(15)) }));
+    it.purpose = purpose; it.notes = notes;
+    it.headH = 36 + purpose.length * 21 + 18;
+    it.noteH = notes.length ? 28 + notes.reduce((a, x) => a + x.ls.length * 21 + 12, 0) : 0;
+    it.totalH = it.headH + it.f.h + (notes.length ? 32 + it.noteH : 0); h = it.totalH;
+  }
+  const W = M * 2 + items.reduce((a, x) => a + x.f.w, 0) + GAP * (items.length - 1);
+  const H = M + HEAD + Math.max(...items.map(x => x.totalH)) + M;
+  const scale = Math.min(2, 15000 / W, 15000 / H, Math.sqrt(120e6 / (W * H)));
+  const cv = document.createElement("canvas"); cv.width = Math.round(W * scale); cv.height = Math.round(H * scale);
+  const g = cv.getContext("2d"); g.scale(scale, scale);
+  g.fillStyle = "#F2F3F6"; g.fillRect(0, 0, W, H);
+  txt(g, project.name, M, M + 18, fnt(30, 700), "#111418");
+  const D = DEVICES[project.device];
+  txt(g, `${D.label} · ${project.theme.mode} theme · accent ${project.theme.accent.toUpperCase()} · radius ${project.theme.radius}px · ${project.screens.length} screen${project.screens.length > 1 ? "s" : ""}`, M, M + 56, fnt(15, 500), "#5F6775");
+  txt(g, "Made with AppSculptor", W - M, M + 18, fnt(13, 600), "#8A919C", "right");
+  let x = M;
+  for (const it of items) {
+    let y = M + HEAD;
+    txt(g, `${it.idx + 1}. ${it.s.name}`, x, y + 14, fnt(21, 700), "#111418");
+    drawLines(g, it.purpose, x, y + 34, it.f.w, 21, fnt(15), "#5F6775");
+    y += it.headH;
+    g.save(); g.translate(x, y); g.shadowColor = "rgba(15,20,30,.18)"; g.shadowBlur = 30; g.shadowOffsetY = 10;
+    rr(g, 0, 0, it.f.w, it.f.h, it.f.outer); g.fillStyle = "#16181C"; g.fill(); g.restore();
+    g.save(); g.translate(x, y); drawDevice(g, it.lay, { notes: it.nums, app: project.name }); g.restore();
+    y += it.f.h + 32;
+    if (it.notes.length) {
+      txt(g, "NOTES", x, y + 8, fnt(12, 700), "#8A919C"); y += 28;
+      for (const n of it.notes) {
+        g.beginPath(); g.arc(x + 11, y + 11, 11, 0, Math.PI * 2); g.fillStyle = NOTE_COLOR; g.fill();
+        txt(g, String(n.n), x + 11, y + 12, fnt(12, 800), "#fff", "center");
+        drawLines(g, n.ls, x + 34, y, it.f.w - 34, 21, fnt(15), "#2A2F37"); y += n.ls.length * 21 + 12;
+      }
+    }
+    x += it.f.w + GAP;
+  }
+  return cv;
+}
+const toBlob = cv => new Promise(res => cv.toBlob(res, "image/png"));
+const dlCap = (window.claude && typeof window.claude.use === "function") ? window.claude.use("downloads").catch(() => null) : Promise.resolve(null);
+async function saveFile(filename, data, mime) {
+  const dl = await dlCap;
+  if (dl) {
+    try { await dl.save({ filename, data }); toast(`Saved ${filename}`); }
+    catch (e) { if (e && e.code === "declined") return; toast(e && e.code === "rate_limited" ? "Another save is waiting — try again in a moment" : "Saving isn't available here. Copy the brief instead."); }
+    return;
+  }
+  const blob = data instanceof Blob ? data : new Blob([data], { type: mime });
+  const a = el("a", { href: URL.createObjectURL(blob), download: filename }); document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000); toast(`Downloading ${filename}`);
+}
+function openExport() {
+  commit(); $("#briefOut").value = buildBrief();
+  const cv = renderExport(); $("#exPreview").src = cv.toDataURL("image/png");
+  $("#exportModal").hidden = false; $("#xPng").focus();
+}
+function closeExport() { $("#exportModal").hidden = true; }
+$("#exportBtn").addEventListener("click", openExport);
+$("#exClose").addEventListener("click", closeExport);
+$("#exportModal").addEventListener("click", e => { if (e.target.id === "exportModal") closeExport(); });
+$("#xPng").addEventListener("click", async () => saveFile(slug() + ".png", await toBlob(renderExport()), "image/png"));
+$("#xPngOne").addEventListener("click", async () => saveFile(`${slug()}-${cur + 1}.png`, await toBlob(renderExport(cur)), "image/png"));
+$("#xMd").addEventListener("click", () => saveFile(slug() + ".md", buildBrief(), "text/markdown"));
+$("#xJson").addEventListener("click", () => saveFile(slug().replace(/-mockup$/, "") + ".appsculptor.json", JSON.stringify(project, null, 2), "application/json"));
+$("#xCopy").addEventListener("click", () => {
+  const text = buildBrief(), ta = $("#briefOut"); ta.value = text;
+  const fallback = () => { ta.focus(); ta.select(); toast("Brief selected — press Copy"); };
+  try { navigator.clipboard.writeText(text).then(() => toast("Brief copied — paste it into your app thread"), fallback); } catch { fallback(); }
+});
+$("#openFile").addEventListener("change", e => {
+  const file = e.target.files[0]; if (!file) return; const r = new FileReader();
+  r.onload = () => { try { project = sanitize(JSON.parse(r.result)); cur = 0; selected = null; commit(); renderAll(); closeExport(); toast(`Opened ${project.name}`); } catch { toast("That file isn't an AppSculptor project."); } };
+  r.readAsText(file); e.target.value = "";
+});
+$("#xExample").addEventListener("click", () => { project = exampleProject(); cur = 0; selected = null; commit(); renderAll(); closeExport(); toast("Example loaded", { label: "Undo", fn: undo }); });
+$("#xNew").addEventListener("click", () => { project = blankProject(); cur = 0; selected = null; commit(); renderAll(); closeExport(); toast("Started a blank app", { label: "Undo", fn: undo }); });
+
+/* ---------------- wiring ---------------- */
+function renderAll() {
+  $("#projName").value = project.name;
+  renderScreenTabs(); renderCanvas(); renderInspector(); renderScreenPane(); renderStylePane();
+}
+$("#projName").addEventListener("input", e => { project.name = e.target.value; commit(false); });
+$("#undoBtn").addEventListener("click", undo);
+$("#redoBtn").addEventListener("click", redo);
+document.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () => setTab(b.dataset.tab)));
+document.querySelectorAll("#zoom button").forEach(b => b.addEventListener("click", () => { zoom = b.dataset.z; document.querySelectorAll("#zoom button").forEach(x => x.setAttribute("aria-pressed", String(x === b))); renderCanvas(); }));
+document.addEventListener("keydown", e => {
+  const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName);
+  const mod = e.metaKey || e.ctrlKey;
+  if (e.key === "Escape" && !$("#exportModal").hidden) { closeExport(); return; }
+  if (mod && e.key.toLowerCase() === "z" && !typing) { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+  if (mod && e.key.toLowerCase() === "y" && !typing) { e.preventDefault(); redo(); return; }
+  if (typing || !selected) return;
+  if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); removeItem(selected); }
+  else if (mod && e.key.toLowerCase() === "d") { e.preventDefault(); duplicate(selected); }
+  else if (e.altKey && e.key === "ArrowUp") { e.preventDefault(); move(selected, -1); }
+  else if (e.altKey && e.key === "ArrowDown") { e.preventDefault(); move(selected, 1); }
+  else if (e.key === "Escape") { selected = null; renderAll(); }
+});
+let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { renderCanvas(); setTab(document.body.dataset.mtab); }, 120); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => { renderPalette(); renderCanvas(); });
+
+loadInitial(); commit(); renderPalette(); renderAll(); setTab("component");
+})();
+</script>
+</body>
+</html>
